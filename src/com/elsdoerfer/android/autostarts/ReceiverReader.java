@@ -72,7 +72,7 @@ public class ReceiverReader {
 	}
 
 	private static enum ParserState { Unknown, InManifest,
-		InApplication, InReceiver, InIntentFilter, InAction }
+		InApplication, InComponent, InIntentFilter, InAction }
 
 	private final Context mContext;
 	private final PackageManager mPackageManager;
@@ -93,6 +93,7 @@ public class ReceiverReader {
 	private static final int COM_RECEIVER = 1;
 	private static final int COM_SERVICES = 2;
 
+    private static final String BACKGROUD_SERVICE = "backGround.service";
 	IntentFilterInfo mCurrentIntentFilterInfo;
 
 	/**
@@ -196,9 +197,11 @@ public class ReceiverReader {
 					else if (tagName.equals("application"))
 						startApplication();
 					else if (tagName.equals("receiver"))
-						startReceiver(COM_RECEIVER);
+						startComponent(COM_RECEIVER);
 					else if (tagName.equals("activity"))
-						startReceiver(COM_ACTIVITY);
+						startComponent(COM_ACTIVITY);
+                    else if (tagName.equals("service"))
+                        startComponent(COM_SERVICES);
 					else if (tagName.equals("intent-filter"))
 						startIntentFilter();
 					else if (tagName.equals("action"))
@@ -214,9 +217,11 @@ public class ReceiverReader {
 					else if (tagName.equals("application"))
 						endApplication();
 					else if (tagName.equals("receiver"))
-						endReceiver();
+						endComponent();
 					else if (tagName.equals("activity"))
-						endReceiver();
+						endComponent();
+                    else if (tagName.equals("service"))
+                        endComponent();
 					else if (tagName.equals("intent-filter"))
 						endIntentFilter();
 					else if (tagName.equals("action"))
@@ -298,13 +303,13 @@ public class ReceiverReader {
 		}
 	}
 
-	void startReceiver(int type) {
+	void startComponent(int type) {
 		if (mCurrentState != ParserState.InApplication)
 			return;
 
 		mCurrentIntentFilterInfo = null;
 
-		mCurrentState = ParserState.InReceiver;
+		mCurrentState = ParserState.InComponent;
 
 		// Build the component name. We need to do some normalization here,
 		// since we can get the original string the dev. put into his XML.
@@ -340,8 +345,9 @@ public class ReceiverReader {
 		mCurrentComponent = new ComponentInfo();
 		mCurrentComponent.packageInfo = mCurrentPackage;
 		mCurrentComponent.componentName = componentName;
-		mCurrentComponent.componentLabel = getAttr("label");
-		mCurrentComponent.defaultEnabled = !(getAttr("enabled") == "false");;
+        String label = getAttr("label");
+		mCurrentComponent.componentLabel = (label != null ? label : componentName.substring(componentName.lastIndexOf(".") + 1));
+		mCurrentComponent.defaultEnabled = !(getAttr("enabled") == "false");
 		mCurrentComponent.currentEnabledState =
 		    mPackageManager.getComponentEnabledSetting(
 			    new ComponentName(mCurrentPackage.packageName,
@@ -350,15 +356,20 @@ public class ReceiverReader {
 		mCurrentComponent.componentType = type;
 	}
 
-	void endReceiver() {
-		if (mCurrentState == ParserState.InReceiver) {
+	void endComponent() {
+		if (mCurrentState == ParserState.InComponent) {
+            if(mCurrentComponent != null && mCurrentComponent.componentType == COM_SERVICES){
+                mCurrentIntentFilterInfo = new IntentFilterInfo(
+                        mCurrentComponent, BACKGROUD_SERVICE, mCurrentFilterPriority);
+                mResult.add(mCurrentIntentFilterInfo);
+            }
 			mCurrentComponent = null;
 			mCurrentState = ParserState.InApplication;
 		}
 	}
 
 	void startIntentFilter() {
-		if (mCurrentState != ParserState.InReceiver)
+		if (mCurrentState != ParserState.InComponent)
 			 return;
 
 		mCurrentState = ParserState.InIntentFilter;
@@ -380,7 +391,7 @@ public class ReceiverReader {
 
 	void endIntentFilter() {
 		if (mCurrentState == ParserState.InIntentFilter) {
-			mCurrentState = ParserState.InReceiver;
+			mCurrentState = ParserState.InComponent;
 			mCurrentFilterPriority = 0;
 		}
 	}
@@ -392,7 +403,7 @@ public class ReceiverReader {
 		mCurrentState = ParserState.InAction;
 
 		// A component name is missing, we can't proceed.
-		if (mCurrentComponent == null)
+		if (mCurrentComponent == null || mCurrentComponent.componentType == COM_SERVICES)
 			return;
 
 		String action = getAttr("name");

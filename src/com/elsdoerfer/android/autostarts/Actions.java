@@ -21,6 +21,10 @@ import android.telephony.TelephonyManager;
 final class Actions {
 
 	static final Object[][] ALL = {
+        //Add launch icon
+        { Intent.ACTION_MAIN, R.string.act_main, R.string.act_main_detail},
+        //Add backgroud services
+        { "backGround.service", R.string.act_background_service, R.string.act_background_service_detail},
 		// Those our users care most about, we'd like to have those in front.
 		{ "android.intent.action.PRE_BOOT_COMPLETED", R.string.act_pre_boot_completed, R.string.act_pre_boot_completed_detail },
 		{ Intent.ACTION_BOOT_COMPLETED, R.string.act_boot_completed, R.string.act_boot_completed_detail },

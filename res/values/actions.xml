@@ -366,4 +366,8 @@
     <string name="act_nsd_state_changed_detail">Network Service Discovery has been enabled or disabled.</string>
     <string name="act_query_keyboard_layouts">(Query keyboard layouts)</string>
     <string name="act_query_keyboard_layouts_detail">By registering for this event, the application defines a keyboard layout. No application is started by this event.</string>
+    <string name="act_main">Launcher icon</string>
+    <string name="act_main_detail">By control this event, the application icon visible or invisible in launch</string>
+    <string name="act_background_service">Background Service</string>
+    <string name="act_background_service_detail">By control this event, the service has been enable or disable to run.</string>
 </resources>
