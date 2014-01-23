@@ -120,6 +120,11 @@ public class ReceiverReader {
 			android.content.pm.PackageInfo p = packages.get(i);
 
 			if (LOGV) Log.v(TAG, "Processing package "+p.packageName);
+
+			//donot parse itself
+			if(p.packageName.equals("com.elsdoerfer.android.autostarts")){
+				continue;
+			}
 			parsePackage(p);
 
 			// Publish an update after every package
