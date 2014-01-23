@@ -5,6 +5,9 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
+import android.content.Intent;
+import android.drm.DrmStore;
+import android.support.v4.app.NotificationCompat;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 
@@ -85,6 +88,12 @@ public class ReceiverReader {
 	ParserState mCurrentState = ParserState.Unknown;
 	ComponentInfo mCurrentComponent = null;
 	int mCurrentFilterPriority = 0;
+
+	private static final int COM_ACTIVITY = 0;
+	private static final int COM_RECEIVER = 1;
+	private static final int COM_SERVICES = 2;
+
+	IntentFilterInfo mCurrentIntentFilterInfo;
 
 	/**
 	 * Constructor.
@@ -187,11 +196,15 @@ public class ReceiverReader {
 					else if (tagName.equals("application"))
 						startApplication();
 					else if (tagName.equals("receiver"))
-						startReceiver();
+						startReceiver(COM_RECEIVER);
+					else if (tagName.equals("activity"))
+						startReceiver(COM_ACTIVITY);
 					else if (tagName.equals("intent-filter"))
 						startIntentFilter();
 					else if (tagName.equals("action"))
 						startAction();
+					else if (tagName.equals("category"))
+						startCategory();
 					break;
 
 				case XmlPullParser.END_TAG:
@@ -202,9 +215,13 @@ public class ReceiverReader {
 						endApplication();
 					else if (tagName.equals("receiver"))
 						endReceiver();
+					else if (tagName.equals("activity"))
+						endReceiver();
 					else if (tagName.equals("intent-filter"))
 						endIntentFilter();
 					else if (tagName.equals("action"))
+						endAction();
+					else if (tagName.equals("category"))
 						endAction();
 					break;
 				}
@@ -281,9 +298,11 @@ public class ReceiverReader {
 		}
 	}
 
-	void startReceiver() {
+	void startReceiver(int type) {
 		if (mCurrentState != ParserState.InApplication)
 			return;
+
+		mCurrentIntentFilterInfo = null;
 
 		mCurrentState = ParserState.InReceiver;
 
@@ -327,6 +346,8 @@ public class ReceiverReader {
 		    mPackageManager.getComponentEnabledSetting(
 			    new ComponentName(mCurrentPackage.packageName,
 			    		mCurrentComponent.componentName));
+
+		mCurrentComponent.componentType = type;
 	}
 
 	void endReceiver() {
@@ -382,10 +403,42 @@ public class ReceiverReader {
 			return;
 		}
 
+		if(mCurrentComponent.componentType == COM_ACTIVITY && !action.equals(Intent.ACTION_MAIN)){
+			return;
+		}
+
 		// Add this receiver to the result
-		IntentFilterInfo filter = new IntentFilterInfo(
+		mCurrentIntentFilterInfo = new IntentFilterInfo(
 				mCurrentComponent, action, mCurrentFilterPriority);
-		mResult.add(filter);
+		if(mCurrentComponent.componentType != COM_ACTIVITY){
+			mResult.add(mCurrentIntentFilterInfo);
+		}
+	}
+
+	void startCategory() {
+		if (mCurrentState != ParserState.InIntentFilter)
+			return;
+
+		mCurrentState = ParserState.InAction;
+
+		// A component name is missing, we can't proceed.
+		if (mCurrentComponent == null || mCurrentIntentFilterInfo == null || mCurrentComponent.componentType != COM_ACTIVITY)
+			return;
+
+		String category = getAttr("name");
+		if (category == null) {
+			Log.w(TAG, "component "+mCurrentComponent.componentName+
+					" of package "+mCurrentPackage.packageName+" has "+
+					"category without name");
+			return;
+		}
+
+		if(!category.equals(Intent.CATEGORY_LAUNCHER)){
+			return;
+		}
+
+		mResult.add(mCurrentIntentFilterInfo);
+//		Log.d(TAG, "add activity name = "+mCurrentComponent.componentName);
 	}
 
 	void endAction() {

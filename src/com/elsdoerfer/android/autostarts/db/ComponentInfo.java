@@ -23,6 +23,8 @@ public class ComponentInfo implements Parcelable {
 	public boolean defaultEnabled;
 	public int currentEnabledState;
 
+	public int componentType;
+
 	public ComponentInfo() {
 	}
 
